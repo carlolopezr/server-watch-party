@@ -90,6 +90,10 @@ const socketController = (socket, io) => {
 		socket.to(room_id).emit('SERVER:play-pause', { playing });
 	});
 
+	socket.on('CLIENT:mouse-move', ({ room_id }) => {
+		socket.to(room_id).emit('SERVER:mouse-move');
+	});
+
 	socket.on('CLIENT:on-progress', ({ room_id, user_time_stamp, user_id, playing }) => {
 		const room = rooms.find(room => room.room_id === room_id);
 		if (room) {
