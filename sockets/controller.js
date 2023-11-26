@@ -30,13 +30,16 @@ const socketController = (socket, io) => {
 				room_status: roomStatus.waiting,
 				movie_state: 'not-started',
 				users: [{ ...user, userTs: 0, leader: true }],
+				messages: [],
 			});
 			socket.join(room_id);
 		}
 		const participants = rooms.find(room => room.room_id === room_id).users;
 		const room_status = rooms.find(room => room.room_id === room_id).room_status;
+		const messages = rooms.find(room => room.room_id === room_id).messages;
 		io.sockets.in(room_id).emit('SERVER:participants', { participants });
 		io.sockets.in(room_id).emit('SERVER:room-status', { room_status: room_status });
+		io.sockets.in(room_id).emit('SERVER:messages', { messages });
 	});
 
 	socket.on('CLIENT:start-movie', ({ room_id, room_status, movie_state }) => {
@@ -104,6 +107,24 @@ const socketController = (socket, io) => {
 				const maxTime = Math.max(...usersTimes);
 				io.sockets.in(room_id).emit('SERVER:time-stamp', { maxTime, playing });
 			}
+		}
+	});
+
+	socket.on('CLIENT:send-message', ({ room_id, user, msg, time, message_id }) => {
+		const room = rooms.find(room => room.room_id === room_id);
+		const newMessage = { msg, user, time, message_id };
+		if (room) {
+			room.messages.push(newMessage);
+			socket.to(room_id).emit('SERVER:sent-message', { msg: newMessage });
+		}
+	});
+
+	socket.on('CLIENT:signal', ({ room_id, signalData }) => {
+		const sender = rooms.flatMap(room => room.users).find(user => user.socket_id === socket.id);
+		const recipient = rooms.flatMap(room => room.users).find(user => user.user_id !== sender.user_id);
+
+		if (sender && recipient) {
+			io.to(recipient.socket_id).emit('SERVER:signal', { signalData, user_id: sender.user_id });
 		}
 	});
 
